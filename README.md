@@ -2,24 +2,31 @@
 
 [![CI](https://github.com/zaydzaari/HomePC/actions/workflows/ci.yml/badge.svg)](https://github.com/zaydzaari/HomePC/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/zaydzaari/HomePC)](https://github.com/zaydzaari/HomePC/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-3b82f6.svg)](LICENSE)
+[![.NET 8](https://img.shields.io/badge/.NET-8.0-512bd4.svg)](https://dotnet.microsoft.com/download/dotnet/8.0)
 
-Control a Windows PC from Google Home without opening an inbound port or exposing a remote shell.
+HomePC is an open-source bridge for controlling a Windows PC from Google Home without opening an inbound port or exposing a remote shell.
 
 HomePC publishes a fixed set of safe Windows actions as Google Home switches. A .NET agent keeps one authenticated outbound WebSocket connection to a Cloudflare Durable Object, while Google Home communicates with a standards-based Cloud-to-cloud fulfillment service.
 
-> **Status:** working v2 private-test release. Account linking, device discovery, custom routines, live Cloudflare deployment, DPAPI-protected local credentials, and the Windows agent have been verified end to end.
-
-<p align="center">
-  <img src="docs/images/homepc-demo.gif" alt="HomePC dashboard and Google Home demo" width="820">
-</p>
-
-<p align="center">
-  <img src="docs/images/dashboard-v2.png" alt="HomePC v2 local dashboard" width="820">
-</p>
+> **Status:** v2.0.0 is released. Account linking, device discovery, custom routines, the live Cloudflare deployment, DPAPI-protected credentials, and the Windows agent have been exercised end to end. Report State remains opt-in because Google requires a project-specific service-account key.
 
 <p align="center">
   <img src="docs/images/google-home-devices.png" alt="HomePC devices inside Google Home" width="300">
 </p>
+
+## Verification at a glance
+
+| Area | Current evidence |
+|---|---|
+| Automated tests | 16 Cloudflare/Google protocol tests and 15 .NET tests |
+| Static checks | TypeScript type-check, Worker dry-run, release build, and npm audit |
+| Release pipeline | GitHub Actions builds the self-contained Windows x64 bundle from a tag |
+| Local secrets | Device and admin tokens are encrypted with Windows DPAPI for the current user |
+| Network boundary | The agent makes one authenticated outbound WebSocket connection; the PC accepts no inbound internet connection |
+| Command boundary | Cloud messages select fixed action identifiers; shell text, scripts, remote paths, and arbitrary executables are rejected |
+
+Run `./tools/verify.ps1` to reproduce the project checks. Recorded results and the exact environment are in [VERIFICATION.md](VERIFICATION.md).
 
 ## Features
 
@@ -27,7 +34,7 @@ HomePC publishes a fixed set of safe Windows actions as Google Home switches. A 
 - OAuth 2.0 authorization-code account linking with expiring codes, refresh tokens, and revocation.
 - Cloudflare Worker plus SQLite-backed Durable Object and WebSocket hibernation.
 - .NET 8 Windows agent with replay protection, strict message validation, and a fixed action registry.
-- Polished localhost dashboard for status, application detection, safe tests, and protected permissions.
+- Localhost-only Windows-style dashboard for status, application detection, safe tests, and protected permissions.
 - Custom user routines that compose 1-12 validated allow-listed actions and can appear as Google Home switches.
 - Windows tray application plus a current-user installer and startup shortcut.
 - Current-user DPAPI encryption for the local device and admin tokens.

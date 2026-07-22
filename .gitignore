@@ -12,5 +12,6 @@ cloud/.dev.vars
 *.log
 .vs/
 .idea/
+.tmp-dashboard-preview/
 .DS_Store
 Thumbs.db
