@@ -16,6 +16,13 @@ function New-Secret([int]$bytes = 32) {
   try { $generator.GetBytes($buffer) } finally { $generator.Dispose() }
   return [Convert]::ToBase64String($buffer).TrimEnd('=').Replace('+','-').Replace('/','_')
 }
+function Protect-LocalSecret([string]$value) {
+  if (-not $IsWindows -and $PSVersionTable.PSEdition -eq 'Core') { throw 'Local DPAPI protection requires Windows.' }
+  $plain=[Text.Encoding]::UTF8.GetBytes($value)
+  $entropy=[Text.Encoding]::UTF8.GetBytes('HomePC.Configuration.v1')
+  $protected=[Security.Cryptography.ProtectedData]::Protect($plain,$entropy,[Security.Cryptography.DataProtectionScope]::CurrentUser)
+  return 'dpapi:v1:' + [Convert]::ToBase64String($protected)
+}
 $clientId = 'homepc-' + (New-Secret 18)
 $clientSecret = New-Secret 32
 $linkPassword = New-Secret 18
@@ -25,8 +32,9 @@ $redirect = "https://oauth-redirect.googleusercontent.com/r/$ProjectId"
 $secrets = [ordered]@{ GOOGLE_CLIENT_ID=$clientId; GOOGLE_CLIENT_SECRET=$clientSecret; GOOGLE_REDIRECT_URI=$redirect; LINK_PASSWORD=$linkPassword; DEVICE_TOKEN=$deviceToken; ADMIN_TOKEN=$adminToken }
 $secrets | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $generated 'worker-secrets.json') -Encoding utf8
 $config = Get-Content -Raw -LiteralPath (Join-Path $root 'config\homepc.example.json') | ConvertFrom-Json
-$config.deviceToken = $deviceToken
-$config.adminToken = $adminToken
+$config.schemaVersion = 2
+$config.deviceToken = Protect-LocalSecret $deviceToken
+$config.adminToken = Protect-LocalSecret $adminToken
 $config | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $generated 'homepc.json') -Encoding utf8
 $values = @"
 HomePC Google Home Developer Console values
@@ -39,12 +47,11 @@ Authorization URL: WORKER_URL/oauth/authorize
 Token URL: WORKER_URL/oauth/token
 Cloud fulfillment URL: WORKER_URL/smarthome
 Scope: homepc.control
-HTTP Basic Auth: Enable (the token endpoint also accepts body credentials)
+HTTP Basic Auth: Off (use request-body client credentials)
 Icon filename: $ProjectId.png
 OAuth redirect URI validated by HomePC: $redirect
 Private test instructions: Open Google Home > Add > Device > Link app or service > search [test] HomePC; enter the link password below.
 Link password: $linkPassword
-Admin token (keep private): $adminToken
 "@
 $values | Set-Content -LiteralPath (Join-Path $generated 'google-home-values.txt') -Encoding utf8
 Write-Host "Generated private files in $generated"

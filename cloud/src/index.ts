@@ -77,7 +77,7 @@ async function route(request: Request, env: HomeEnv): Promise<Response> {
   }
   if (url.pathname === "/admin/status" && request.method === "GET") {
     const token = bearer(request) ?? ""; if (!await constantTimeEqual(token, env.ADMIN_TOKEN)) return oauthError("unauthorized", 401);
-    return json({ linked: await home.linked(), agent: await home.status(), audit: await home.recentAudit() });
+    return json({ linked: await home.linked(), agent: await home.status(), reportState: await home.willReportState(), routines: await home.routines(), audit: await home.recentAudit() });
   }
   return json({ error: "not_found" }, 404);
 }

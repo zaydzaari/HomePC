@@ -4,7 +4,7 @@ export type ActionId =
   | "open_notepad" | "open_steam" | "open_discord" | "open_chrome"
   | "gaming_mode" | "study_mode" | "movie_mode" | "lock_pc" | "sleep_pc"
   | "restart_pc" | "shutdown_pc" | "set_volume" | "mute" | "play_pause"
-  | "next_track" | "previous_track" | "monitor_off";
+  | "next_track" | "previous_track" | "monitor_off" | "run_routine";
 
 export interface CommandEnvelope {
   type: "command";
@@ -30,4 +30,3 @@ export function isActionResult(value: unknown): value is ActionResult {
   return v.type === "result" && typeof v.commandId === "string" &&
     typeof v.success === "boolean" && typeof v.completedAt === "number";
 }
-

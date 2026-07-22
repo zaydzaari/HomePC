@@ -1,60 +1,22 @@
-# Roadmap: custom instructions
+# Roadmap
 
-The next HomePC update will let the owner create personal routines such as **Focus mode**, **Open my work setup**, or **Movie night**. A routine will compose existing approved actions; it will not execute arbitrary text as code.
+## Shipped in v2.0
 
-## Proposed experience
+- Custom allow-listed routines with strict schema validation.
+- Local routine editor, test and delete controls.
+- Optional custom routine switches in Google Home SYNC.
+- Windows tray application and current-user installer.
+- Current-user DPAPI encryption for local device and admin tokens.
+- Optional Google Home Report State with service-account authentication.
+- Expanded cloud and .NET test coverage.
+- Automated Windows bundles and GitHub Releases.
 
-The localhost dashboard will provide a routine editor with:
+## Candidates for v2.1
 
-- a name and optional Google Home display name;
-- an ordered list of allow-listed actions;
-- validated parameters selected through controls, not a command text box;
-- a **Dry run** preview and a local **Test** button;
-- explicit confirmation for actions requiring protected permissions;
-- an audit entry showing which routine and step ran.
+- Signed MSIX packaging and automatic update checks.
+- A visual drag-and-drop routine editor in place of the JSON step editor.
+- DPAPI `LocalMachine` support for dedicated Windows Service installations.
+- Home Graph accuracy telemetry in the local dashboard.
+- Multiple-PC accounts with explicit device ownership and revocation.
 
-Example configuration:
-
-```json
-{
-  "schemaVersion": 2,
-  "routines": [
-    {
-      "id": "focus-mode",
-      "name": "Focus mode",
-      "steps": [
-        { "action": "open_notepad" },
-        { "action": "set_volume", "parameters": { "level": 25 } }
-      ]
-    }
-  ]
-}
-```
-
-## Security boundary
-
-Custom means **user-composed**, not unrestricted. The implementation will:
-
-- resolve every step through the existing fixed action registry;
-- reject unknown fields, unknown action IDs, invalid types, and out-of-range values;
-- reject PowerShell, CMD, shell strings, uploaded scripts, executable arguments, and remote paths;
-- enforce the existing local permission gates for sleep, restart, shutdown, process closing, and power-plan changes;
-- cap routine length and execution time;
-- stop safely on failure and record the failed step;
-- keep routine definitions local unless the user explicitly publishes their names as Google Home devices.
-
-## Delivery plan
-
-1. Add a versioned routine schema and strict parser in `HomePC.Core`.
-2. Add registry composition, cancellation, timeout, and audit support.
-3. Build the localhost routine editor with dry-run validation.
-4. Add optional Google Home SYNC exposure for selected routines.
-5. Add migration from schema version 1, unit tests, integration tests, and updated screenshots.
-
-## Definition of done
-
-- Existing configurations continue to work unchanged.
-- Invalid routines cannot start and produce a useful local error.
-- A routine cannot bypass an action's permission check.
-- SYNC, QUERY, EXECUTE, relinking, and agent reconnection remain covered by tests.
-- Documentation clearly distinguishes routine composition from arbitrary remote command execution.
+The no-shell boundary remains permanent: HomePC routines compose approved actions and will never become arbitrary remote command execution.

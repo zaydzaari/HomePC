@@ -42,12 +42,28 @@ public sealed class ActionRegistry(IWindowsController windows, HomePcConfig conf
                 case ActionId.Mute: await windows.SetMutedAsync(GetBool(command, "muted"), cancellationToken); break;
                 case ActionId.PlayPause or ActionId.NextTrack or ActionId.PreviousTrack: await windows.MediaKeyAsync(action, cancellationToken); break;
                 case ActionId.MonitorOff: await windows.MonitorOffAsync(cancellationToken); break;
+                case ActionId.RunRoutine: await RunRoutineAsync(GetString(command, "routineId"), cancellationToken); break;
                 default: throw new InvalidOperationException("unknown_action");
             }
             return Result(command.CommandId, true, null);
         }
         catch (Exception ex) when (ex is InvalidOperationException or FileNotFoundException or UnauthorizedAccessException)
         { return Result(command.CommandId, false, ex.Message); }
+    }
+
+    private async Task RunRoutineAsync(string id, CancellationToken cancellationToken)
+    {
+        if (!config.Routines.TryGetValue(id, out var routine)) throw new InvalidOperationException($"routine_not_found:{id}");
+        foreach (var step in routine.Steps)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!ActionWire.TryParse(step.Action, out var action) || action == ActionId.RunRoutine) throw new InvalidOperationException("invalid_routine_step");
+            var now = DateTimeOffset.UtcNow;
+            var nested = new CommandEnvelope("command", Guid.NewGuid().ToString("N"), step.Action,
+                step.Parameters.ToDictionary(x => x.Key, x => (object)x.Value), now.ToUnixTimeMilliseconds(), now.AddSeconds(15).ToUnixTimeMilliseconds());
+            var result = await ExecuteAsync(nested, action, cancellationToken);
+            if (!result.Success) throw new InvalidOperationException($"routine_step_failed:{step.Action}:{result.Error}");
+        }
     }
 
     private async Task RunModeAsync(string name, CancellationToken cancellationToken)
@@ -63,6 +79,6 @@ public sealed class ActionRegistry(IWindowsController windows, HomePcConfig conf
     private static void Require(bool allowed, string error) { if (!allowed) throw new InvalidOperationException(error); }
     private static int GetInt(CommandEnvelope c, string key) => ((JsonElement)c.Parameters[key]).GetInt32();
     private static bool GetBool(CommandEnvelope c, string key) => ((JsonElement)c.Parameters[key]).GetBoolean();
+    private static string GetString(CommandEnvelope c, string key) => ((JsonElement)c.Parameters[key]).GetString() ?? throw new InvalidOperationException($"invalid_{key}");
     private CommandResult Result(string id, bool ok, string? error) => new("result", id, ok, error, windows.State, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 }
-

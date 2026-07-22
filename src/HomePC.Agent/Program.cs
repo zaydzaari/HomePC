@@ -6,6 +6,12 @@ using HomePC.Windows;
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddWindowsService(options => options.ServiceName = "HomePC Agent");
 var configPath = ConfigLoader.ResolvePath(args);
+if (args.Contains("--protect-config", StringComparer.Ordinal))
+{
+    ConfigLoader.Protect(configPath);
+    Console.WriteLine($"Protected device and admin tokens for the current Windows user: {configPath}");
+    return;
+}
 var config = ConfigLoader.Load(configPath);
 var issues = ConfigurationValidator.Validate(config);
 if (issues.Count > 0) throw new InvalidOperationException("Invalid configuration: " + string.Join("; ", issues.Select(i => $"{i.Path}: {i.Message}")));
@@ -41,6 +47,16 @@ namespace HomePC.Agent
             }
             return Path.GetFullPath(supplied);
         }
-        public static HomePcConfig Load(string path) => JsonSerializer.Deserialize<HomePcConfig>(File.ReadAllText(path), Json) ?? throw new InvalidDataException("Configuration is empty.");
+        public static HomePcConfig Load(string path) => ConfigurationSecurity.Unprotect(
+            JsonSerializer.Deserialize<HomePcConfig>(File.ReadAllText(path), Json) ?? throw new InvalidDataException("Configuration is empty."));
+
+        public static void Protect(string path)
+        {
+            var config = JsonSerializer.Deserialize<HomePcConfig>(File.ReadAllText(path), Json) ?? throw new InvalidDataException("Configuration is empty.");
+            if (!ConfigurationSecurity.IsProtected(config.DeviceToken)) config.DeviceToken = ConfigurationSecurity.Protect(config.DeviceToken);
+            if (!ConfigurationSecurity.IsProtected(config.AdminToken)) config.AdminToken = ConfigurationSecurity.Protect(config.AdminToken);
+            var output = new JsonSerializerOptions(Json) { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+            File.WriteAllText(path, JsonSerializer.Serialize(config, output));
+        }
     }
 }

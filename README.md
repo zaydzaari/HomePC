@@ -1,13 +1,20 @@
 # HomePC
 
+[![CI](https://github.com/zaydzaari/HomePC/actions/workflows/ci.yml/badge.svg)](https://github.com/zaydzaari/HomePC/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/zaydzaari/HomePC)](https://github.com/zaydzaari/HomePC/releases)
+
 Control a Windows PC from Google Home without opening an inbound port or exposing a remote shell.
 
 HomePC publishes a fixed set of safe Windows actions as Google Home switches. A .NET agent keeps one authenticated outbound WebSocket connection to a Cloudflare Durable Object, while Google Home communicates with a standards-based Cloud-to-cloud fulfillment service.
 
-> **Status:** working private-test release. Google Home account linking, device discovery, live Cloudflare deployment, and the Windows agent have all been verified end to end.
+> **Status:** working v2 private-test release. Account linking, device discovery, custom routines, live Cloudflare deployment, DPAPI-protected local credentials, and the Windows agent have been verified end to end.
 
 <p align="center">
-  <img src="docs/images/dashboard.png" alt="HomePC local dashboard" width="820">
+  <img src="docs/images/homepc-demo.gif" alt="HomePC dashboard and Google Home demo" width="820">
+</p>
+
+<p align="center">
+  <img src="docs/images/dashboard-v2.png" alt="HomePC v2 local dashboard" width="820">
 </p>
 
 <p align="center">
@@ -21,6 +28,10 @@ HomePC publishes a fixed set of safe Windows actions as Google Home switches. A 
 - Cloudflare Worker plus SQLite-backed Durable Object and WebSocket hibernation.
 - .NET 8 Windows agent with replay protection, strict message validation, and a fixed action registry.
 - Polished localhost dashboard for status, application detection, safe tests, and protected permissions.
+- Custom user routines that compose 1-12 validated allow-listed actions and can appear as Google Home switches.
+- Windows tray application plus a current-user installer and startup shortcut.
+- Current-user DPAPI encryption for the local device and admin tokens.
+- Optional proactive Google Home Report State using service-account credentials stored only as Worker secrets.
 - No inbound PC port, arbitrary command endpoint, uploaded script, or remote executable path.
 - Automated TypeScript and .NET tests, release packaging, and GitHub Actions CI.
 
@@ -66,7 +77,7 @@ See [docs/COMMANDS.md](docs/COMMANDS.md) for behavior and safety rules.
 2. Create a project and add a **Cloud-to-cloud** integration.
 3. Copy the immutable project ID, not only the display name.
 
-Do not choose Matter for this release. Matter uses commissioning QR codes; HomePC v1 uses Cloud-to-cloud account linking.
+Do not choose Matter for this release. Matter uses commissioning QR codes; HomePC uses Cloud-to-cloud account linking.
 
 ### 2. Generate private configuration
 
@@ -79,7 +90,7 @@ From the repository root:
 This creates three gitignored files under `generated/`:
 
 - `worker-secrets.json` — Cloudflare Worker secrets
-- `homepc.json` — Windows agent configuration
+- `homepc.json` — Windows agent configuration with its local device/admin tokens encrypted by Windows DPAPI
 - `google-home-values.txt` — values to paste into Google Home Developer Console
 
 The script will not silently overwrite existing secrets.
@@ -124,7 +135,17 @@ Open `generated/google-home-values.txt` and copy its values into the Cloud-to-cl
 
 Save the integration. Go to **Cloud-to-cloud → Test** and click **Test** once so the unpublished integration becomes visible to the project owner.
 
-### 5. Start the Windows agent
+### 5. Install the tray application
+
+The recommended v2 setup installs the agent, dashboard and tray application for the current Windows user:
+
+```powershell
+.\scripts\install-user.ps1
+```
+
+HomePC starts with Windows. Double-click its tray icon to open the dashboard; use the menu to restart after editing routines. To remove the application binaries while retaining recoverable encrypted configuration, run `scripts/uninstall-user.ps1`.
+
+For console development instead:
 
 ```powershell
 dotnet publish .\src\HomePC.Agent -c Release -r win-x64 --self-contained false
@@ -152,6 +173,22 @@ dotnet run --project .\src\HomePC.Dashboard -- --config .\generated\homepc.json
 ```
 
 Open [http://127.0.0.1:5187](http://127.0.0.1:5187). The dashboard binds only to localhost and never renders the device or admin tokens.
+
+## Custom routines
+
+The dashboard's **Custom routines** editor creates instructions such as **Open my work setup**. A routine is an ordered JSON list of existing action IDs. Save it, restart from the tray, and optionally expose it as a Google Home switch.
+
+Every step passes through the same parameter validation and permission gates as a direct command. Nested routines, arbitrary shell text, PowerShell, CMD, scripts, executable paths and remote paths are rejected. See [docs/ROUTINES.md](docs/ROUTINES.md).
+
+## Optional Report State
+
+HomePC implements Google Home Graph Report State, but Google requires a service-account key from the matching project. After enabling HomeGraph API and downloading that key, activate it with:
+
+```powershell
+.\tools\configure-report-state.ps1 -ServiceAccountJson C:\secure\homepc-service-account.json
+```
+
+The key is uploaded directly to Cloudflare secrets and is never copied into Git. Until configured, `willReportState` is false and QUERY remains authoritative. See [docs/REPORT_STATE.md](docs/REPORT_STATE.md).
 
 ## Configuration
 
@@ -185,11 +222,11 @@ The most common setup failures and their fixes are documented in [docs/TROUBLESH
 - Keep **HTTP Basic Auth off** in Google Home Developer Console unless you intentionally change the server configuration.
 - If the integration is missing, click **Test** in Developer Console using the same Google account as the phone.
 
-## Next update: custom instructions
+## Releases
 
-The next planned release adds user-defined routines such as “focus mode” or “open my work setup.” It will remain allow-list based: custom instructions will compose approved actions and parameters, never arbitrary PowerShell, CMD, scripts, or remote paths.
+Tags matching `v*` run the full verification suite, build a self-contained Windows x64 bundle, and publish both source and Windows ZIPs to [GitHub Releases](https://github.com/zaydzaari/HomePC/releases). See [docs/ROADMAP.md](docs/ROADMAP.md) for future work.
 
-See [docs/ROADMAP.md](docs/ROADMAP.md) for the proposed schema, validation, dashboard editor, dry-run mode, and migration plan.
+Inside the Windows bundle, run `.\install.ps1 -ConfigPath C:\path\to\homepc.json` to install the already-built application without requiring the source tree.
 
 ## Repository guide
 
@@ -200,8 +237,9 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the proposed schema, validation, dash
 | `src/HomePC.Core/` | Models, validation, action registry |
 | `src/HomePC.Windows/` | Allow-listed Windows integrations |
 | `src/HomePC.Dashboard/` | Local status and safe test UI |
+| `src/HomePC.Tray/` | Windows notification-area launcher |
 | `tests/` | .NET tests |
-| `tools/` | Bootstrap, deploy, verify, and release scripts |
+| `tools/` | Bootstrap, deploy, Report State, verify, and release scripts |
 | `docs/` | Architecture, setup, security, commands, and roadmap |
 
 ## Contributing

@@ -44,6 +44,37 @@ public sealed class CoreTests
     [Fact] public void MalformedJsonThrowsJsonException() => Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<CommandEnvelope>("{broken"));
     [Fact] public void ResultCreationHasExpectedEnvelope() => Assert.Equal("result", new CommandResult("result", "id", true, null, new(10, false, null), 1).Type);
 
+    [Fact] public void RoutineValidationRejectsNestedAndUnknownActions()
+    {
+        var config = BaseConfig();
+        config.Routines["bad-routine"] = new() { Name = "Bad", Steps = [new() { Action = "run_routine" }] };
+        Assert.Contains(ConfigurationValidator.Validate(config), x => x.Path == "routines.bad-routine.steps[0].action");
+    }
+
+    [Fact] public async Task RoutineExecutesApprovedStepsInOrder()
+    {
+        var fake = new FakeWindows(); var config = BaseConfig();
+        config.Routines["focus-mode"] = new()
+        {
+            Name = "Focus mode",
+            Steps = [new() { Action = "open_notepad" }, new() { Action = "set_volume", Parameters = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>("{\"volume\":20}")! }]
+        };
+        var parameters = JsonSerializer.Deserialize<Dictionary<string, object>>("{\"routineId\":\"focus-mode\"}")!;
+        var now = DateTimeOffset.UtcNow;
+        var command = new CommandEnvelope("command", "routine", "run_routine", parameters, now.ToUnixTimeMilliseconds(), now.AddMinutes(1).ToUnixTimeMilliseconds());
+        var result = await new ActionRegistry(fake, config).ExecuteAsync(command, ActionId.RunRoutine, default);
+        Assert.True(result.Success); Assert.Equal(["launch:notepad", "volume:20"], fake.Calls);
+    }
+
+    [Fact] public void DpapiRoundTripProtectsSecretsForCurrentUser()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var protectedValue = ConfigurationSecurity.Protect("a-secret-value");
+        Assert.StartsWith("dpapi:v1:", protectedValue); Assert.Equal("a-secret-value", ConfigurationSecurity.Unprotect(protectedValue));
+    }
+
+    private static HomePcConfig BaseConfig() => new() { WorkerUrl = "https://example.workers.dev", DeviceToken = new('d', 32), AdminToken = new('a', 32) };
+
     private static CommandEnvelope Command(string id, string action, DateTimeOffset issued, DateTimeOffset expires, string parameters = "{}") =>
         new("command", id, action, JsonSerializer.Deserialize<Dictionary<string, object>>(parameters)!, issued.ToUnixTimeMilliseconds(), expires.ToUnixTimeMilliseconds());
 

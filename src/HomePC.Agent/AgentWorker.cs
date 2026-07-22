@@ -32,7 +32,9 @@ public sealed class AgentWorker(HomePcConfig config, CommandGuard guard, ActionR
         socket.Options.KeepAliveInterval = TimeSpan.FromSeconds(config.HeartbeatSeconds);
         var ws = new Uri(new Uri(config.WorkerUrl), "/device/ws").ToString().Replace("https://", "wss://", StringComparison.OrdinalIgnoreCase);
         await socket.ConnectAsync(new Uri(ws), token);
-        await SendAsync(socket, JsonSerializer.Serialize(new { type = "hello", agentVersion = "1.0.0", platform = "windows" }), token);
+        var routines = config.Routines.Where(x => x.Value.ExposeToGoogleHome)
+            .Select(x => new { id = x.Key, name = x.Value.Name }).ToArray();
+        await SendAsync(socket, JsonSerializer.Serialize(new { type = "hello", agentVersion = "2.0.0", platform = "windows", routines }), token);
         await audit.WriteAsync("connected", "cloud websocket authenticated", token);
         var buffer = new byte[config.MaxMessageBytes];
         while (socket.State == WebSocketState.Open && !token.IsCancellationRequested)
@@ -70,4 +72,3 @@ public sealed class AgentWorker(HomePcConfig config, CommandGuard guard, ActionR
     private static Task SendAsync(ClientWebSocket socket, string value, CancellationToken token) =>
         socket.SendAsync(Encoding.UTF8.GetBytes(value), WebSocketMessageType.Text, true, token);
 }
-

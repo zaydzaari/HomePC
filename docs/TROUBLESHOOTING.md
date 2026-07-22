@@ -12,6 +12,8 @@
 | Token exchange fails | Keep **HTTP Basic Auth off** so Google sends credentials in the documented request body. HomePC supports both modes, but body mode is the verified configuration. |
 | Redirect mismatch | The exact redirect must be `https://oauth-redirect.googleusercontent.com/r/PROJECT_ID`, using the immutable project ID. |
 | Devices do not appear after linking | Confirm the fulfillment URL, inspect Worker audit events, and relink with the developer-project Google account. |
+| New custom routine is missing | Enable **Expose to Google Home**, restart from the tray, then relink or request a sync. |
+| Report State stays disabled | Enable HomeGraph API and run `tools/configure-report-state.ps1` with a service-account JSON key from the same project. |
 
 Useful live checks:
 
@@ -50,3 +52,4 @@ curl.exe https://YOUR_WORKER.workers.dev/health
 | Dashboard unavailable | Start `HomePC.Dashboard` and open `http://127.0.0.1:5187`. |
 | Cloud shows unavailable | Verify the admin token and Worker URL in the generated config, then check `/health`. |
 | Permission change is not active | Restart both the agent and dashboard after changing protected permissions. |
+| DPAPI decryption fails | Run the tray or agent as the Windows user that ran bootstrap. A service identity requires its own protected configuration. |

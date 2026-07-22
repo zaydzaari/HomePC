@@ -10,6 +10,8 @@ export interface DeviceDefinition {
   dangerous?: boolean;
 }
 
+export interface RoutineDescriptor { id: string; name: string }
+
 const momentary = (id: string, name: string, action: ActionId, dangerous = false): DeviceDefinition => ({
   id, name, action, dangerous,
   type: "action.devices.types.SWITCH",
@@ -36,17 +38,25 @@ export const DEVICES: readonly DeviceDefinition[] = [
   momentary("media-previous", "Media Previous", "previous_track"),
 ] as const;
 
-export function findDevice(id: string): DeviceDefinition | undefined {
-  return DEVICES.find((device) => device.id === id);
+export function allDevices(routines: readonly RoutineDescriptor[] = []): readonly DeviceDefinition[] {
+  const custom = routines.map((routine) => momentary(`routine-${routine.id}`, routine.name, "run_routine"));
+  return [...DEVICES, ...custom];
+}
+
+export function findDevice(id: string, devices: readonly DeviceDefinition[] = DEVICES): DeviceDefinition | undefined {
+  return devices.find((device) => device.id === id);
 }
 
 export interface MappedCommand { action: ActionId | null; parameters: Record<string, boolean | number | string> }
 
-export function mapGoogleCommand(deviceId: string, command: string, params: unknown): MappedCommand | "unsupported" {
-  const device = findDevice(deviceId);
+export function mapGoogleCommand(deviceId: string, command: string, params: unknown, devices: readonly DeviceDefinition[] = DEVICES): MappedCommand | "unsupported" {
+  const device = findDevice(deviceId, devices);
   if (!device) return "unsupported";
   const p = params && typeof params === "object" ? params as Record<string, unknown> : {};
-  if (device.action && command === "action.devices.commands.OnOff" && p.on === true) return { action: device.action, parameters: device.action === "mute" ? { muted: true } : {} };
+  if (device.action && command === "action.devices.commands.OnOff" && p.on === true) {
+    if (device.action === "run_routine") return { action: device.action, parameters: { routineId: device.id.slice("routine-".length) } };
+    return { action: device.action, parameters: device.action === "mute" ? { muted: true } : {} };
+  }
   if (device.action && command === "action.devices.commands.OnOff" && p.on === false) return { action: null, parameters: {} };
   return "unsupported";
 }

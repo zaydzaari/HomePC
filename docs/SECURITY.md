@@ -13,7 +13,8 @@ Assets are the PC control capability, OAuth tokens, device/admin tokens and loca
 | Replay/delay | Expiry/future checks and bounded 512-ID replay cache | Replay after cache eviction is blocked by short expiry |
 | Dangerous power action | Restart/shutdown/sleep local flags, disabled by default | User deliberately enables them |
 | Dashboard exposure | `127.0.0.1` binding and no secret display | Malicious local process/user |
-| Secret leakage | `generated/` ignored/excluded from ZIP; redacted logs | Poor local ACL/backup hygiene |
+| Secret leakage | `generated/` ignored/excluded from ZIP; redacted logs; local agent tokens encrypted with current-user DPAPI | A process already running as the same Windows user can request DPAPI decryption |
+| Unsafe custom routine | Versioned schema, 12-step cap, fixed action IDs and parameter validation on every step | A user can deliberately enable and compose protected actions |
+| Service-account theft | HomeGraph key is uploaded only as a Worker secret and never copied into repository configuration | Cloudflare account compromise |
 
-The generated agent token is stored in a user-controlled gitignored JSON file. Protect the folder with Windows ACLs. DPAPI is not used in v1 because Windows Services and interactive-user processes have different DPAPI identities; a service-specific encrypted store is a documented hardening step.
-
+Bootstrap encrypts the device and admin tokens with Windows DPAPI for the current user. This matches the tray and interactive-agent installation. A service running as another identity cannot decrypt that file; use a configuration protected under the service identity for service-mode deployments.
