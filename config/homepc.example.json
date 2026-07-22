@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 2,
   "workerUrl": "https://homepc-google-home.YOUR_SUBDOMAIN.workers.dev",
   "deviceToken": "GENERATED_NOT_COMMITTED",
   "adminToken": "GENERATED_NOT_COMMITTED",
@@ -19,6 +20,16 @@
     "gaming": { "launch": ["steam", "discord"], "urls": [], "volume": 55, "powerPlan": null, "close": [] },
     "study": { "launch": ["chrome", "notepad"], "urls": ["https://classroom.google.com"], "volume": 20, "powerPlan": null, "close": [] },
     "movie": { "launch": ["chrome"], "urls": ["https://www.youtube.com"], "volume": 45, "powerPlan": null, "close": [] }
+  },
+  "routines": {
+    "focus-mode": {
+      "name": "Focus mode",
+      "exposeToGoogleHome": true,
+      "steps": [
+        { "action": "open_notepad", "parameters": {} },
+        { "action": "set_volume", "parameters": { "volume": 20 } }
+      ]
+    }
   },
   "heartbeatSeconds": 25,
   "maxMessageBytes": 32768,

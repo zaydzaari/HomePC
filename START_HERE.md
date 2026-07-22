@@ -11,13 +11,15 @@
 
 4. Copy `generated/google-home-values.txt` into the Google Home integration. Keep **HTTP Basic Auth off**.
 5. Save, open **Cloud-to-cloud → Test**, and click **Test**.
-6. Start the Windows agent:
+6. Install the Windows tray application:
 
    ```powershell
-   dotnet run --project .\src\HomePC.Agent -- --config .\generated\homepc.json
+   .\scripts\install-user.ps1
    ```
 
 7. In Google Home, choose **Add → Device → Add a different way**, search **`[test] HomePC`**, and enter the generated link password.
 8. Add the devices to a room and test **Open Notepad**.
 
 For screenshots, detailed explanations, and troubleshooting, read [README.md](README.md).
+
+Create custom routines from the localhost dashboard. Optional Report State setup is documented in [docs/REPORT_STATE.md](docs/REPORT_STATE.md).

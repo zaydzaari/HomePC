@@ -3,6 +3,8 @@ import type { HomeEnv } from "./env";
 import type { ActionResult, CommandEnvelope } from "./protocol";
 import { isActionResult, MAX_MESSAGE_BYTES } from "./protocol";
 import { constantTimeEqual, randomToken, sha256 } from "./security";
+import { reportStateConfigured, reportStates } from "./homegraph";
+import { DEVICES, type RoutineDescriptor } from "./devices";
 
 interface PendingCommand {
   resolve: (value: { success: boolean; error?: string }) => void;
@@ -107,6 +109,28 @@ export class HomePcObject extends DurableObject<HomeEnv> {
     return { ...state, online: sockets.some((socket) => socket.readyState === WebSocket.OPEN) };
   }
 
+  async routines(): Promise<RoutineDescriptor[]> {
+    return (await this.ctx.storage.get<RoutineDescriptor[]>("routines")) ?? [];
+  }
+
+  async willReportState(): Promise<boolean> { return reportStateConfigured(this.env); }
+
+  async reportState(deviceId: string, state: Record<string, unknown>): Promise<boolean> {
+    if (!await this.linked() || !reportStateConfigured(this.env)) return false;
+    try { return await reportStates(this.env, { [deviceId]: state }); }
+    catch (error) { this.audit("report_state_failed", error instanceof Error ? error.message : "unknown"); return false; }
+  }
+
+  private async reportAll(online: boolean): Promise<void> {
+    if (!await this.linked() || !reportStateConfigured(this.env)) return;
+    const routineDevices = (await this.routines()).map((x) => `routine-${x.id}`);
+    const ids = [...DEVICES.map((x) => x.id), ...routineDevices];
+    try {
+      await reportStates(this.env, Object.fromEntries(ids.map((id) => [id, { online, on: false }])));
+      this.audit("report_state", online ? "agent_online" : "agent_offline");
+    } catch (error) { this.audit("report_state_failed", error instanceof Error ? error.message : "unknown"); }
+  }
+
   async execute(action: string, parameters: Record<string, boolean | number | string>, timeoutMs: number): Promise<{ success: boolean; error?: string }> {
     const socket = this.ctx.getWebSockets("agent").find((item) => item.readyState === WebSocket.OPEN);
     if (!socket) return { success: false, error: "offline" };
@@ -150,8 +174,17 @@ export class HomePcObject extends DurableObject<HomeEnv> {
     let value: unknown;
     try { value = JSON.parse(message); } catch { socket.send(JSON.stringify({ type: "error", error: "malformed_json" })); return; }
     if (value && typeof value === "object" && (value as Record<string, unknown>).type === "hello") {
+      const rawRoutines = (value as Record<string, unknown>).routines;
+      const routines = Array.isArray(rawRoutines) ? rawRoutines.flatMap((item): RoutineDescriptor[] => {
+        if (!item || typeof item !== "object") return [];
+        const entry = item as Record<string, unknown>;
+        return typeof entry.id === "string" && /^[a-z][a-z0-9-]{1,47}$/.test(entry.id) && typeof entry.name === "string" && entry.name.length <= 60
+          ? [{ id: entry.id, name: entry.name }] : [];
+      }).slice(0, 20) : [];
+      await this.ctx.storage.put("routines", routines);
       await this.ctx.storage.put("device_state", { volume: 0, muted: false, mode: null, lastSeen: Date.now(), lastAction: null });
       socket.send(JSON.stringify({ type: "hello_ack", serverTime: Date.now() }));
+      await this.reportAll(true);
       return;
     }
     if (!isActionResult(value)) { socket.send(JSON.stringify({ type: "error", error: "invalid_message" })); return; }
@@ -171,5 +204,6 @@ export class HomePcObject extends DurableObject<HomeEnv> {
 
   override async webSocketClose(_socket: WebSocket, _code: number, _reason: string, _wasClean: boolean): Promise<void> {
     this.audit("agent_disconnected", "websocket closed");
+    await this.reportAll(false);
   }
 }

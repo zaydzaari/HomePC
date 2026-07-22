@@ -1,0 +1,35 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  windows-release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Verify
+        shell: pwsh
+        run: .\tools\verify.ps1
+      - name: Package source and Windows application
+        shell: pwsh
+        run: |
+          .\tools\package-release.ps1
+          .\tools\build-windows-bundle.ps1
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if (gh release view $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY 2>$null) {
+            gh release upload $env:GITHUB_REF_NAME release/HomePC-Google-Home.zip release/HomePC-Windows-x64.zip --repo $env:GITHUB_REPOSITORY --clobber
+          } else {
+            gh release create $env:GITHUB_REF_NAME release/HomePC-Google-Home.zip release/HomePC-Windows-x64.zip --repo $env:GITHUB_REPOSITORY --generate-notes --verify-tag
+          }

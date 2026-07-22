@@ -1,67 +1,57 @@
 # Verification
 
-Last verified: **2026-07-22**
+Last verified: **2026-07-22** — HomePC **2.0.0**
 
 ## Automated checks
 
 | Check | Result |
 |---|---|
-| TypeScript type-check | Pass |
-| Vitest Worker tests | Pass — 13/13 |
+| TypeScript strict type-check | Pass |
+| Vitest Worker tests | Pass — 16/16 |
 | npm dependency audit | Pass — 0 known vulnerabilities |
-| .NET restore and Release build | Pass |
-| xUnit tests | Pass — 12/12 |
-| Cloudflare Worker bundle | Pass |
-| Generated configuration validation | Pass |
-| Secret sentinel and package inspection | Pass |
-| Local EXECUTE simulation | Pass |
-| Secret-safe release archive | Pass |
-| Fresh-clone install, build, and tests | Pass |
+| Cloudflare Worker dry-run bundle | Pass |
+| .NET restore and Release build | Pass — agent, core, Windows, dashboard and tray |
+| xUnit tests | Pass — 15/15 |
+| DPAPI round-trip test | Pass on Windows |
+| Routine validation and ordered execution | Pass |
+| Generated configuration validation | Pass with DPAPI-protected live configuration |
+| Local Google EXECUTE simulation | Pass |
+| Self-contained Windows x64 bundle | Pass |
+| Source and Windows archive inspection | Pass — generated secrets and private artifacts excluded |
+| Fresh-clone install, type-check, tests and Release build | Pass |
 
-Run the same suite with:
+Commands executed:
 
 ```powershell
 .\tools\verify.ps1
-```
-
-Additional release checks executed:
-
-```powershell
-cd cloud
-npm audit
-npm run deploy:dry
-cd ..
 .\tools\package-release.ps1
+.\tools\build-windows-bundle.ps1
 ```
 
-The committed repository was also cloned into a new gitignored directory, then verified with `npm ci`, TypeScript tests, `dotnet restore`, Release build, and all .NET tests.
+The bundled `HomePC.Agent.exe` also validated the live encrypted configuration successfully.
 
 ## Live verification
 
-The following account-bound checks were completed against the owner's private Google Home project and Cloudflare account:
-
-- Cloudflare Worker deployed successfully to `workers.dev`.
+- HomePC v2 Worker deployed successfully to the owner's `workers.dev` endpoint.
 - `/health` returned HTTP 200.
-- All required Worker secrets were uploaded.
-- Windows agent established an authenticated outbound WebSocket connection.
-- OAuth authorization returned Google's callback redirect.
-- Authorization-code exchange returned HTTP 200 and issued access and refresh tokens.
-- Android Google Home account linking completed.
-- Google Home SYNC discovered the HomePC virtual devices.
-- Google Home displayed the devices for room assignment.
-- Local dashboard reported Cloud linked, Windows agent online, and configuration valid.
+- Windows agent authenticated over outbound WSS after the v2 deployment.
+- Existing Google OAuth link remained valid.
+- Durable Object reported `linked: true` and `online: true`.
+- Local `deviceToken` and `adminToken` were migrated to `dpapi:v1` ciphertext and still connected successfully.
+- Custom routine `work-setup` was validated locally and published by the agent as `Open my work setup`.
+- Durable Object stored the validated routine descriptor for future SYNC responses.
+- Dashboard reported Cloud linked, agent online and configuration valid.
+- Real dashboard, routine editor and Google Home screenshots were assembled into `docs/images/homepc-demo.gif`.
 
-Evidence is included in:
+## Account-bound item
 
-- `docs/images/google-home-devices.png`
-- `docs/images/dashboard.png`
+Report State code, service-account JWT signing, terminal-state reporting and online/offline reporting are implemented and tested at the fulfillment boundary. Live Home Graph activation is not claimed because no Google service-account JSON key was supplied. The owner can enable it with `tools/configure-report-state.ps1`; until then the live integration correctly advertises `willReportState: false` and uses QUERY.
 
-## Known limitations
+## Honest limitations
 
-- This is a private, single-owner proof of concept rather than a certified public Google Home integration.
-- Report State is not implemented; QUERY is authoritative.
-- Media transport controls are momentary switches. Numeric volume remains dashboard-only.
-- Windows Services run in session 0, so visible desktop app launches require an interactive per-user agent.
-- Volume state can drift when another application changes it.
-- Local generated secrets rely on Windows filesystem permissions rather than DPAPI.
-- Protected power actions are intentionally disabled until enabled locally.
+- This remains a private single-owner integration, not a Google-certified public product.
+- Numeric volume remains dashboard-only; media controls are momentary switches.
+- Visible application launches require an interactive user session.
+- The installer is a PowerShell/current-user installer, not a signed MSIX package.
+- DPAPI CurrentUser configuration cannot be decrypted by a Windows Service running under a different identity.
+- A newly exposed routine may require relinking or Request Sync before it appears in Google Home.
