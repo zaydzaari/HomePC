@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+  <PropertyGroup><OutputType>Exe</OutputType><RuntimeIdentifier>win-x64</RuntimeIdentifier><SelfContained>false</SelfContained></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\HomePC.Core\HomePC.Core.csproj" />
+    <ProjectReference Include="..\HomePC.Windows\HomePC.Windows.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.1" />
+  </ItemGroup>
+</Project>
+

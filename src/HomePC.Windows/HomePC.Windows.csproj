@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion></PropertyGroup>
+  <ItemGroup><ProjectReference Include="..\HomePC.Core\HomePC.Core.csproj" /></ItemGroup>
+</Project>
+

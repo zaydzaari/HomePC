@@ -1,0 +1,16 @@
+generated/
+work/
+logs/
+release/*.zip
+HomePC-Google-Home-Link-QR.png
+**/bin/
+**/obj/
+cloud/node_modules/
+cloud/.wrangler/
+cloud/.dev.vars
+*.user
+*.log
+.vs/
+.idea/
+.DS_Store
+Thumbs.db

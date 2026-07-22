@@ -1,0 +1,6 @@
+{
+  "gaming": { "launch": ["steam", "discord"], "volume": 55 },
+  "study": { "launch": ["chrome", "notepad"], "urls": ["https://classroom.google.com"], "volume": 20 },
+  "movie": { "launch": ["chrome"], "urls": ["https://www.youtube.com"], "volume": 45 }
+}
+

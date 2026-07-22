@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  cloud:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cloud
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: cloud/package-lock.json
+      - run: npm ci
+      - run: npm run types
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run deploy:dry
+
+  dotnet:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet restore HomePC.sln
+      - run: dotnet build HomePC.sln -c Release --no-restore
+      - run: dotnet test HomePC.sln -c Release --no-build
+      - name: Validate example configuration remains secret-free
+        shell: pwsh
+        run: |
+          $config = Get-Content -Raw config/homepc.example.json | ConvertFrom-Json
+          if ($config.deviceToken -ne 'GENERATED_NOT_COMMITTED' -or $config.adminToken -ne 'GENERATED_NOT_COMMITTED') {
+            throw 'Example config contains unexpected token material.'
+          }

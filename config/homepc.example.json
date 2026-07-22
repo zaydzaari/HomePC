@@ -1,0 +1,26 @@
+{
+  "workerUrl": "https://homepc-google-home.YOUR_SUBDOMAIN.workers.dev",
+  "deviceToken": "GENERATED_NOT_COMMITTED",
+  "adminToken": "GENERATED_NOT_COMMITTED",
+  "dashboardUrl": "http://127.0.0.1:5187",
+  "permissions": {
+    "allowSleep": false,
+    "allowRestart": false,
+    "allowShutdown": false,
+    "allowPowerPlanChange": false,
+    "allowProcessClose": false
+  },
+  "applications": {
+    "steam": "",
+    "discord": "",
+    "chrome": ""
+  },
+  "modes": {
+    "gaming": { "launch": ["steam", "discord"], "urls": [], "volume": 55, "powerPlan": null, "close": [] },
+    "study": { "launch": ["chrome", "notepad"], "urls": ["https://classroom.google.com"], "volume": 20, "powerPlan": null, "close": [] },
+    "movie": { "launch": ["chrome"], "urls": ["https://www.youtube.com"], "volume": 45, "powerPlan": null, "close": [] }
+  },
+  "heartbeatSeconds": 25,
+  "maxMessageBytes": 32768,
+  "auditLogPath": "logs/homepc-audit.jsonl"
+}
